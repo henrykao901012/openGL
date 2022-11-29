@@ -48,9 +48,6 @@ float hand_radius;
 float thigh_length;
 float calf_length;
 
-// float thigh_length = 5;
-// float calf_length = 3;
-
 float floor_color[floor_x][floor_z][3];
 float head_color[6][3];
 float torso_color[6][3];
@@ -114,8 +111,11 @@ void set_parameter()
     front_arm_length = 1.5;
     back_arm_length = 2;
     hand_radius = 0.2;
+
     thigh_length = 1.5;
     calf_length = 1;
+    // thigh_length = 5;
+    // calf_length = 3;
 
     isStuck = 0;
 
@@ -129,8 +129,10 @@ void set_parameter()
     }
     else
     {
-        walking_thigh_degree = 25;
-        walking_calf_degree = 15;
+        walking_thigh_degree = 35;
+        walking_calf_degree = 20;
+        // walking_thigh_degree = 50;
+        // walking_calf_degree = 35;
         walking_back_arm_degree = 30;
         walking_front_arm_degree = 12;
         running_f = 1;
@@ -476,12 +478,20 @@ void robot()
         else
             glRotatef(-walking_thigh_degree * 4 * (1 - frac), 1, 0, 0);
         glTranslatef(0, -thigh_length - calf_length, 0);
+
+        if (frac >= 0.5 && frac <= 0.75)
+        {
+            glTranslatef(0, calf_length, 0);
+            glRotatef(walking_calf_degree * 4 * (frac - 0.5), 1, 0, 0);
+            glTranslatef(0, -calf_length, 0);
+        }
     }
-    if (isWalking && frac > 0.5 && frac <= 0.75)
-    {
-        glTranslatef(0, 0, -calf_length * sin(walking_calf_degree * 4 * (frac - 0.5) * Pi / 180));
-        glRotatef(walking_calf_degree * 4 * (frac - 0.5), 1, 0, 0);
-    }
+
+    // if (isWalking && frac > 0.5 && frac <= 0.75)
+    //{
+    //     glTranslatef(0, 0, -calf_length * sin(walking_calf_degree * 4 * (frac - 0.5) * Pi / 180));
+    //     glRotatef(walking_calf_degree * 4 * (frac - 0.5), 1, 0, 0);
+    // }
     glScalef(0.3, calf_length, 0.3);
     cube(calf_color);
     glPopMatrix();
@@ -501,12 +511,19 @@ void robot()
         else
             glRotatef(walking_thigh_degree * 4 * (1 - frac), 1, 0, 0);
         glTranslatef(0, -thigh_length - calf_length, 0);
+
+        if (frac <= 0.25)
+        {
+            glTranslatef(0, calf_length, 0);
+            glRotatef(walking_calf_degree * 4 * frac, 1, 0, 0);
+            glTranslatef(0, -calf_length, 0);
+        }
     }
-    if (isWalking && frac <= 0.25)
-    {
-        glTranslatef(0, 0, -calf_length * sin(walking_calf_degree * 4 * frac * Pi / 180));
-        glRotatef(walking_calf_degree * 4 * frac, 1, 0, 0);
-    }
+    // if (isWalking && frac <= 0.25)
+    //{
+    //     glTranslatef(0, 0, -calf_length * sin(walking_calf_degree * 4 * frac * Pi / 180));
+    //     glRotatef(walking_calf_degree * 4 * frac, 1, 0, 0);
+    // }
 
     glScalef(0.3, calf_length, 0.3);
     cube(calf_color);
