@@ -8,8 +8,8 @@
 
 #define Pi atan(1) * 4
 
-#define floor_x 5
-#define floor_z 5
+#define floor_x 20
+#define floor_z 20
 
 #define set_floor_color 1
 #define set_head_color 2
@@ -19,12 +19,18 @@
 #define set_thigh_color 6
 #define set_calf_color 7
 
+#define x_direction_viewing 1
+#define y_direction_viewing 2
+#define z_direction_viewing 3
+#define perspective_direction_viewing 4
+
 using namespace std;
 
-int screen_width = 500, screen_height = 500;
+int screen_width = 1000, screen_height = 1000;
 int mouse_x, mouse_y;
 float camera_pos[3] = {6.0, 6.0, 6.0};
-float robot_pos[3] = {0.0, 0.0, 0.0};
+float robot_pos[3] = {0, 0, 0};
+float robot_angle = 0;
 
 float walking_thigh_degree;
 float walking_calf_degree;
@@ -35,7 +41,6 @@ bool isWalking;
 bool isRunning;
 bool isStuck;
 bool isSwinging;
-bool isRight;
 int running_f;
 int f_per_idle = 100;
 int frame_counter;
@@ -77,6 +82,8 @@ int face[6][4] = {
     {3, 2, 6, 7},
 }; // 6 faces,each consist of 4 index of points
 
+GLUquadricObj *sphere, *cylind, *disk;
+
 /*************************************************************************************************************************/
 
 void display();
@@ -97,11 +104,10 @@ void ball(float ***);
 void floor();
 void robot();
 
-// void head();
-// void troso();
-// void front_arm();
-// void back_arm();
-// void hand();
+void make_view_projection(int);
+void draw_all_scene();
+void draw_axes();
+
 /*************************************************************************************************************************/
 
 void set_parameter()
@@ -281,15 +287,12 @@ void robot()
 
     /**********************************************************************************/
 
-    float x_trans = isWalking * isRight * frac * running_f * !isStuck;
-    float z_trans = isWalking * !isRight * frac * running_f * !isStuck;
+    float x_trans = isWalking * sin(robot_angle * Pi / 180) * frac * running_f * !isStuck;
+    float z_trans = isWalking * cos(robot_angle * Pi / 180) * frac * running_f * !isStuck;
     glTranslatef(robot_pos[0], robot_pos[1], robot_pos[2]);
     glTranslatef(x_trans, 0, z_trans);
-    if (isRight)
-    {
-        glTranslatef(0, 0, 1);
-        glRotatef(90, 0, 1, 0);
-    }
+
+    glRotatef(robot_angle, 0, 1, 0);
     if (isWalking && isRunning)
     {
         glRotatef(running_body_tilt_degree, 1, 0, 0);
@@ -542,12 +545,16 @@ void keyboard(unsigned char key, int x, int y)
 
     switch (key)
     {
-    case 'r':
-    case 'R':
-    case 'l':
-    case 'L':
+    case 'q':
+    case 'Q':
+        exit(0);
+    case '*':
         isWalking = 1;
-        isRight = key == 'r' || key == 'R';
+        break;
+    case 'g':
+        robot_angle += 5;
+        if (robot_angle >= 360)
+            robot_angle -= 360;
         break;
     case 's':
     case 'S':
@@ -555,6 +562,7 @@ void keyboard(unsigned char key, int x, int y)
         break;
     case '0':
         robot_pos[0] = robot_pos[1] = robot_pos[2] = 0;
+        robot_angle = 0;
         break;
     case '1':
         isRunning = !isRunning;
@@ -570,13 +578,17 @@ void idle()
         frame_counter++;
     if (frame_counter >= f_per_idle)
     {
-        isStuck = (isWalking & isRight & robot_pos[0] + running_f >= floor_x) | (isWalking & !isRight & robot_pos[2] + running_f >= floor_z);
+        // isStuck = (isWalking & isRight & robot_pos[0] + running_f >= floor_x) | (isWalking & !isRight & robot_pos[2] + running_f >= floor_z);
+        isStuck = 0;
         if (isWalking)
         {
-            if (isRight && !isStuck)
-                robot_pos[0] += isRunning ? 2 : 1;
-            else if (!isRight && !isStuck)
-                robot_pos[2] += isRunning ? 2 : 1;
+            // if (isRight && !isStuck)
+            //     robot_pos[0] += isRunning ? 2 : 1;
+            // else if (!isRight && !isStuck)
+            //     robot_pos[2] += isRunning ? 2 : 1;
+
+            robot_pos[0] += sin(robot_angle * Pi / 180) * (isRunning ? 2 : 1);
+            robot_pos[2] += cos(robot_angle * Pi / 180) * (isRunning ? 2 : 1);
         }
 
         frame_counter = 0;
@@ -589,16 +601,16 @@ void idle()
 void floor()
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
+    int fff = 1;
     for (int i = 0; i < floor_x; i++)
         for (int j = 0; j < floor_z; j++)
         {
             glColor3fv(floor_color[i][j]);
             glBegin(GL_POLYGON);
-            glVertex3f(i, 0.0, j);
-            glVertex3f(i, 0.0, j + 1);
-            glVertex3f(i + 1, 0.0, j + 1);
-            glVertex3f(i + 1, 0.0, j);
+            glVertex3f(i * fff, 0.0, j * fff);
+            glVertex3f(i * fff, 0.0, (j + 1) * fff);
+            glVertex3f((i + 1) * fff, 0.0, (j + 1) * fff);
+            glVertex3f((i + 1) * fff, 0.0, j * fff);
             glEnd();
         }
 }
@@ -607,13 +619,31 @@ void init()
 {
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0, 0, 499, 499);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-8.0, 8.0, -8.0, 8.0, 0.0, 20.0);
 
     glEnable(GL_DEPTH_TEST);
+
+    if (sphere == NULL)
+    {
+        sphere = gluNewQuadric();
+        gluQuadricDrawStyle(sphere, GLU_FILL);
+        gluQuadricNormals(sphere, GLU_SMOOTH);
+    }
+    if (cylind == NULL)
+    {
+        cylind = gluNewQuadric();
+        gluQuadricDrawStyle(cylind, GLU_FILL);
+        gluQuadricNormals(cylind, GLU_SMOOTH);
+    }
+    if (disk == NULL)
+    {
+        disk = gluNewQuadric();
+        gluQuadricDrawStyle(disk, GLU_FILL);
+        gluQuadricNormals(disk, GLU_SMOOTH);
+    }
 
     glFlush();
 }
@@ -635,15 +665,97 @@ void reshape(int w, int h)
 void display()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    // gluLookAt(6.0, 6.0, 6.0, 3.0, 0.0, 3.0, 0.0, 1.0, 0.0);
-    gluLookAt(camera_pos[0], camera_pos[1], camera_pos[2], robot_pos[0] + 0.0, robot_pos[1] + 0.0, robot_pos[2] + 0.0, 0.0, 1.0, 0.0);
 
-    floor();
-    robot();
+    make_view_projection(x_direction_viewing);
+    draw_all_scene();
+
+    make_view_projection(y_direction_viewing);
+    draw_all_scene();
+
+    make_view_projection(z_direction_viewing);
+    draw_all_scene();
+
+    make_view_projection(perspective_direction_viewing);
+    draw_all_scene();
+
     glutSwapBuffers();
+}
+
+void make_view_projection(int view)
+{
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    switch (view)
+    {
+    case x_direction_viewing:
+        glViewport(0, 0, screen_width / 2, screen_height / 2);
+        gluLookAt(15.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+        break;
+    case y_direction_viewing:
+        glViewport(screen_width / 2, 0, screen_width / 2, screen_height / 2);
+        gluLookAt(0.0, 15.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+        break;
+    case z_direction_viewing:
+        glViewport(0, screen_height / 2, screen_width / 2, screen_height / 2);
+        gluLookAt(0.0, 0.0, 15.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+        break;
+    case perspective_direction_viewing:
+        glViewport(screen_width / 2, screen_height / 2, screen_width / 2, screen_height / 2);
+        gluLookAt(camera_pos[0], camera_pos[1], camera_pos[2], robot_pos[0], robot_pos[1], robot_pos[2], 0.0, 1.0, 0.0);
+        break;
+    }
+}
+
+void draw_all_scene()
+{
+    floor();
+    draw_axes();
+    robot();
+}
+
+void draw_axes()
+{
+
+    glColor3f(0.9, 0.9, 0.9);
+
+    glPushMatrix();
+    glTranslatef(10, 0, 10);
+    gluSphere(sphere, 0.5, /* radius=2.0 */
+              12,          /* composing of 12 slices*/
+              12);         /* composing of 8 stacks */
+
+    /*----Draw three axes in colors, yellow, meginta, and cyan--*/
+    /* Draw Z axis  */
+    glColor3f(0.0, 0.95, 0.95);
+    gluCylinder(cylind, 0.1, 0.1, /* radius of top and bottom circle */
+                3.0,              /* screen_height of the cylinder */
+                12,               /* use 12-side polygon approximating circle*/
+                3);               /* Divide it into 3 sections */
+
+    /* Draw Y axis */
+    glPushMatrix();
+    glRotatef(-90.0, 1.0, 0.0, 0.0); /*Rotate about x by -90', z becomes y */
+    glColor3f(0.95, 0.0, 0.95);
+    gluCylinder(cylind, 0.1, 0.1, /* radius of top and bottom circle */
+                3.0,              /* screen_height of the cylinder */
+                12,               /* use 12-side polygon approximating circle*/
+                3);               /* Divide it into 3 sections */
+    glPopMatrix();
+
+    /* Draw X axis */
+    glColor3f(0.95, 0.95, 0.0);
+    glPushMatrix();
+    glRotatef(90.0, 0.0, 1.0, 0.0); /*Rotate about y  by 90', x becomes z */
+    gluCylinder(cylind, 0.1, 0.1,   /* radius of top and bottom circle */
+                3.0,                /* screen_height of the cylinder */
+                12,                 /* use 12-side polygon approximating circle*/
+                3);                 /* Divide it into 3 sections */
+    glPopMatrix();
+    /*-- Restore the original modelview matrix --*/
+    glPopMatrix();
 }
 
 void mouse(int button, int state, int x, int y)
@@ -655,7 +767,7 @@ void PassiveMotion(int x, int y)
     mouse_x = x;
     mouse_y = screen_height - y;
     // printf("x = %d, y = %d\n", mouse_x, mouse_y);
-    //  printf("%f %f %f\n", camera_pos[0], camera_pos[1], camera_pos[2]);
+    printf("%f %f %f\n", camera_pos[0], camera_pos[1], camera_pos[2]);
     // printf("%d\n", isStuck ? 1 : 0);
 }
 
